@@ -1,67 +1,68 @@
 # Data Storytelling in Finance
 
 **Author:** Megha Chowdhury  
-**Live App:** [Click here to view the Shiny app][(https://meghachowdhury.shinyapps.io/Data_storytelling_project_group_M/)]  
+**Live App:** [View the deployed Shiny app](https://meghachowdhury.shinyapps.io/Data_storytelling_project_group_M/)
+
+---
 
 ## 📌 Project Overview
-This project explores the relationship between **infrastructure access** — specifically **electricity** and **internet availability** — and **education outcomes** across countries of different income levels. The analysis was conducted as part of the *Data Storytelling in Finance* course, with a focus on transforming raw data into an engaging, interactive narrative.
 
-The project was implemented as an **interactive R Shiny dashboard**, allowing users to explore patterns, correlations, and comparisons between countries and income groups.
+This project explores the relationship between **infrastructure access** — specifically **electricity** and **internet availability** — and **education outcomes** across countries of different income levels.  
+The analysis was conducted as part of the *Data Storytelling in Finance* course, with a focus on transforming raw data into a compelling data-driven narrative.
 
 ---
 
 ##  Dataset
-The dataset comes from the **World Bank Open Data** repository and includes:
-- **Electricity access (%)**
-- **Internet users (%)**
-- **GDP per capita (current US$)**
-- **Education outcomes** (e.g., school enrollment rates, literacy rates)
-- **Country income classifications**
 
-Data covers multiple countries and years, enabling both **cross-country** and **time-series** comparisons.  
-*Note: The full dataset is not included in this repository due to file size limitations, but it can be obtained directly from the [World Bank Data Portal](https://data.worldbank.org/).*
+The dataset comes from the **World Bank Open Data** repository and includes:
+
+- **Electricity access (% of population)**
+- **Internet users (% of population)**
+- **GDP per capita (current US$)**
+- **Education indicators** (e.g., secondary school completion, enrollment, literacy)
+- **Country income classifications** (Low, Lower-Middle, Upper-Middle, High)
+
+The data spans multiple years and countries, allowing for both **cross-country** and **time-series** comparisons.
+
+> *Note: The full dataset is not included in this repository due to file size constraints, but it can be accessed via the [World Bank Data Portal](https://data.worldbank.org/).*
 
 ---
 
 ##  Main Findings
-1. **Electricity access and education outcomes** are strongly correlated in lower-income countries, but the relationship flattens for high-income nations where access is already universal.
-2. **Internet penetration** is a more significant predictor of improved education outcomes in middle-income countries than in low-income countries.
-3. **High GDP per capita** does not guarantee the highest education outcomes — some upper-middle-income countries outperform high-income ones in specific metrics.
-4. The interactive visualizations reveal clear **regional clusters** where infrastructure and education progress together.
+
+1. **Electricity access and education outcomes** are strongly correlated in lower-income countries, but the relationship flattens for high-income nations.
+2. **Internet penetration** tends to be a more significant predictor of improved education outcomes in middle-income countries.
+3. **High GDP per capita** does not automatically translate into better education outcomes — some upper-middle-income countries outperform high-income ones on key metrics.
+4. **Regional clusters** show infrastructure and education often advance hand-in-hand, but disparities persist where investment is lacking.
 
 ---
 
 ##  Technical Details
+
 - **Language:** R  
 - **Framework:** R Markdown with `shiny` runtime  
 - **UI Theme:** [`rmdformats::downcute`](https://github.com/juba/rmdformats)  
-- **Visualization Libraries:** `ggplot2`, `plotly`, `reactable`, `ggtext`  
-- **Deployment:** [shinyapps.io](https://shinyapps.io/)  
-
-The interactive dashboard includes:
-- **Heatmaps** for cross-country comparisons
-- **Bar charts** for ranking countries by indicators
-- **Multi-series charts** for comparing variables over time
-- **Filter controls** for selecting years, regions, and income groups
+- **Libraries Used:** `ggplot2`, `plotly`, `reactable`, `ggtext`  
+- **Deployment:** Hosted on [shinyapps.io](https://www.shinyapps.io/)
 
 ---
 
-## Repository Contents
-- `Data_storytelling_project_group_M.Rmd` – main R Markdown source code for the dashboard  
-- `Data_storytelling_project_group_M.html` – compiled static HTML output  
-- `screenshots/` – images of the deployed app for quick preview  
+##  Repository Contents
+
+- `Data_storytelling_project_group_M.Rmd` – R Markdown source code for the dashboard  
+- `Data_storytelling_project_group_M.html` – Compiled static HTML output  
+- `screenshots/` – Preview images of the app  
 - `LICENSE` – MIT license for reuse  
-- *(Dataset not included due to size limits — see above for source)*
+- *(Dataset not included — see World Bank link above)*
 
 ---
 
 ##  License
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📧 Contact
-If you have questions, feel free to reach out via GitHub issues or [LinkedIn](https://www.linkedin.com/).
+##  Contact
 
----
-
+If you have any questions or feedback, feel free to reach out via GitHub Issues or [connect with me on LinkedIn](https://www.linkedin.com/).
