@@ -1,0 +1,1012 @@
+---
+title: "Storytelling in finance"
+author: "Megha Chowdhury"
+date: "`r Sys.Date()`"
+output: rmdformats::downcute
+runtime: shiny_prerendered
+---
+
+# Introduction
+
+In an increasingly digital and interconnected world, education remains a key driver of economic development, social mobility, and improved living standards. Yet, stark disparities in educational outcomes persist across countries, often correlating with differences in income levels and access to basic infrastructure.
+
+In this project, we explore how access to infrastructure services—specifically electricity and the internet—relates to secondary education outcomes across countries with different income levels, using panel data from the World Bank for the period 2005 to 2023. We examine whether greater access to electricity and the internet aligns with higher rates of secondary education completion.
+
+We specifically focus on secondary education because it is a universally recognized foundational stage, providing essential skills for individuals to pursue further learning, participate in society, and enhance employability. Everyone deserves the opportunity to complete this stage, regardless of their country’s income level.
+
+Research Question:
+
+> How does access to electricity and the internet impact education outcomes across different income-level countries?
+
+This research question is important because:
+
+-   Education is critical for reducing poverty and inequality.
+
+-   Access to electricity and the internet improves learning environments, digital literacy, and access to information, all of which are increasingly essential for quality education.
+
+-   Understanding these relationships can help policymakers identify where investments in infrastructure may yield high returns in human capital development, especially in low- and middle-income countries.
+
+Using structured exploratory data analysis, we visualize and quantify these relationships to identify patterns and disparities, providing a clear, evidence-based foundation for further statistical modeling and policy discussion.
+
+# EDA
+
+To understand our data systematically, we followed a 10-step exploratory data analysis (EDA) process, including defining the research question, importing, structuring, cleaning, and visualizing the data to uncover patterns and check assumptions before modeling. This structured EDA allows us to identify data quality issues, understand distributions, and clarify variable relationships relevant to our research question.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+
+library(shiny)
+library(tidyverse)
+library(DescTools)
+library(gridExtra)
+library(mice)
+library(hexbin)
+library(RColorBrewer)
+library(dplyr)
+library(ggplot2)
+library(readr)
+
+```
+
+## Step 1 : Define the research question
+
+*How does access to infrastructure services, specifically electricity and the internet, influence education outcomes across different income countries?*
+
+## Step 2 : Import the data
+
+```{r, warning=FALSE}
+data <- read.csv("worldbankdata_wide.csv")
+data <- as.tibble(data)
+```
+
+## Step 3 : Structure of the data
+
+```{r,}
+dim(data)
+```
+
+```{r,results='hide'}
+str(data) 
+head(data)
+tail(data) 
+```
+
+```{r}
+data[2660:2665,]
+```
+
+Columns that should be of type numeric are currently of type character due to the presence of non-numeric values like ".."
+
+## Step 4 : Decluttering
+
+### Declutter the columns
+
+```{r}
+data_cleaned <- data %>%
+  select(
+    Country.Name,        
+    Year,                 
+    EG.ELC.ACCS.ZS,       
+    IT.NET.USER.ZS,
+    SE.SEC.CMPT.LO.ZS,
+    SE.ADT.1524.LT.ZS,    
+    NY.GDP.PCAP.PP.CD,    
+    SP.URB.TOTL.IN.ZS     
+  ) %>%
+  rename(
+    country = Country.Name,
+    year = Year,
+    electricity = EG.ELC.ACCS.ZS,
+    internet = IT.NET.USER.ZS,
+    secondary_edu = SE.SEC.CMPT.LO.ZS,
+    youth_literacy = SE.ADT.1524.LT.ZS,
+    GDP = NY.GDP.PCAP.PP.CD,
+    urban_percent = SP.URB.TOTL.IN.ZS
+  )
+dim(data_cleaned)
+str(data_cleaned)
+```
+
+We select only the relevant columns needed for our analysis to simplify the dataset, focusing on key variables like electricity, internet, secondary education, GDP, and urbanization. We then rename columns with shorter, intuitive names for cleaner code and easier reference during EDA and visualization.
+
+```{r, warning=FALSE}
+data_cleaned <- data_cleaned %>%
+  mutate(across(-c(country, year), ~ as.numeric(.)))
+str(data_cleaned)
+```
+
+We convert all columns except `country` and `year` to numeric to enable quantitative analysis and plotting. The warning about `NAs introduced by coercion` indicates that some cells contained non-numeric values (e.g., ".." for missing data), which are automatically converted to `NA`. This is expected and will be handled in later steps of our EDA.
+
+```{r, include= FALSE}
+sort(unique(data_cleaned$country))
+```
+
+When inspecting the `country` column, we notice it contains not only individual countries but also aggregate regions and income groups (e.g., "Arab World", "Low income", "World"). These are not relevant for our country-level analysis, so we need to filter them out to ensure consistency in our comparisons.
+
+```{r}
+non_countries <- c(
+  "Africa Eastern and Southern",
+  "Africa Western and Central",
+  "Arab World",
+  "Caribbean small states",
+  "Central Europe and the Baltics",
+  "East Asia & Pacific",
+  "East Asia & Pacific (excluding high income)",
+  "East Asia & Pacific (IDA & IBRD countries)",
+  "Europe & Central Asia",
+  "Europe & Central Asia (excluding high income)",
+  "Europe & Central Asia (IDA & IBRD countries)",
+  "European Union",
+  "Fragile and conflict affected situations",
+  "Heavily indebted poor countries (HIPC)",
+  "High income",
+  "IBRD only",
+  "IDA & IBRD total",
+  "IDA blend",
+  "IDA only",
+  "IDA total",
+  "Late-demographic dividend",
+  "Latin America & Caribbean",
+  "Latin America & Caribbean (excluding high income)",
+  "Latin America & the Caribbean (IDA & IBRD countries)",
+  "Least developed countries: UN classification",
+  "Low & middle income",
+  "Low income",
+  "Lower middle income",
+  "Middle East & North Africa",
+  "Middle East & North Africa (excluding high income)",
+  "Middle East & North Africa (IDA & IBRD countries)",
+  "Middle income",
+  "Not classified",
+  "OECD members",
+  "Other small states",
+  "Pacific island small states",
+  "Post-demographic dividend",
+  "Pre-demographic dividend",
+  "Small states",
+  "South Asia",
+  "South Asia (IDA & IBRD)",
+  "Sub-Saharan Africa",
+  "Sub-Saharan Africa (excluding high income)",
+  "Sub-Saharan Africa (IDA & IBRD countries)",
+  "Upper middle income",
+  "World",
+  "Early-demographic dividend",
+  "Euro area",
+  "North America",
+  "West Bank and Gaza",
+  "American Samoa",
+  "Aruba",
+  "Bermuda",
+  "British Virgin Islands",
+  "Cayman Islands",
+  "Channel Islands",
+  "Curacao",
+  "Faroe Islands",
+  "French Polynesia",
+  "Gibraltar",
+  "Greenland",
+  "Guam",
+  "Hong Kong SAR, China",
+  "Isle of Man",
+  "Macao SAR, China",
+  "New Caledonia",
+  "Northern Mariana Islands",
+  "Puerto Rico",
+  "Sint Maarten (Dutch part)",
+  "St. Martin (French part)",
+  "Turks and Caicos Islands",
+  "Virgin Islands (U.S.)"
+)
+data_cleaned <- data_cleaned %>%
+  filter(!country %in% non_countries)
+
+length(unique(data_cleaned$country))
+sort(unique(data_cleaned$country))
+```
+
+After defining a list of regional aggregates and income group labels, we filter them out to retain only actual countries in our dataset. This ensures that our analysis truly reflects country-level patterns, avoiding misleading aggregation effects in our visualizations and summaries.
+
+### Decluttering rows
+
+```{r}
+na_rows <- apply(is.na(data_cleaned), 1, sum) / ncol(data_cleaned) 
+plot(na_rows, type = "h")
+
+data_cleaned <- data_cleaned %>% filter(!is.na(secondary_edu))
+```
+
+We calculated the proportion of missing values in each row to get an overview of our missing data pattern. The plot shows vertical lines for each observation, where taller lines indicate a higher proportion of missing values across the columns. As seen, many rows have around 20–70% missingness, which can affect downstream analysis if not handled carefully.
+
+We then removed all rows with missing values in `secondary_edu`, as this is our main outcome variable. Analyzing predictors like electricity and internet access requires this variable to be present. Imputing the target variable could introduce bias, so removing these rows ensures clean and interpretable analysis. This reduced the dataset from \~5300 rows to \~2300 rows with valid target values.
+
+```{r}
+sum(is.na(data_cleaned$secondary_edu))
+
+na_rows <- apply(is.na(data_cleaned), 1, sum) / ncol(data_cleaned) 
+plot(na_rows, type = "h")
+```
+
+After this cleaning step, we re-plotted na_rows. The updated plot now shows that:
+
+-   Most rows have very low missingness (under 15%).
+-   A few rows have up to \~35% missing, mainly due to missing values in predictors `internet`, `electricity`, `GDP`, or `urban_percent`.
+-   There are no rows with full missingness, and the overall data quality is much better.
+
+Conclusion: This cleaning step helped us retain a strong, analyzable dataset with complete target values, while still allowing for imputation of predictors later on.
+
+## Step 5 : Narrow down the target data
+
+```{r}
+data_cleaned <- data_cleaned %>%
+  mutate(
+    low_edu = ifelse(secondary_edu < 60, 1, 0)  # 1 = low completion
+  )
+```
+
+We created a binary target variable low_edu, flagging countries with secondary education completion rates below 60% as 1 (low completion). This simplifies our analysis by focusing on identifying predictors and patterns associated with low education completion across countries.
+
+## Step 6 : Data Summary
+
+```{r}
+summary(data_cleaned)
+```
+
+We examined the summary statistics to get a sense of our cleaned dataset. The variables show meaningful variation across `countries` and `years`, and we identified missingness in `youth_literacy` and `GDP`, which we will address or accommodate in further steps. Additionally, the newly created `low_edu` variable indicates that around one-fourth of the data points represent low secondary education completion (\<60%), aligning with our focus for the target variable in the analysis.
+
+## step 7 : Variables reconstruction
+
+Here we will ask these 5 questions for each column and change or keep them accordingly :
+
+1.  Is the data correctly formatted?
+2.  Is the data related to our problem?
+3.  Does the data need adjustment?
+4.  Which shape does the data exhibit?(outliers)
+5.  Can we extend the data?
+
+### 1st column : country
+
+```{r}
+Desc(data_cleaned$country)
+```
+
+Q1 `country` column is correctly formatted as character, Q2 it's highly related to our research question, Q3 we already removed the names that weren't countries, Q4 data looks normal, Q5 no need to extend the data.
+
+### 2nd column : year
+
+```{r}
+Desc(data_cleaned$year)
+```
+
+```{r}
+data_cleaned <- data_cleaned %>%
+  mutate(post_2015 = ifelse(year > 2015, 1, 0)) # Q5
+
+data_cleaned$post_2015 <- as.factor(data_cleaned$post_2015) # Change to correct format
+```
+
+We extended the `year` column into a `post_2015` variable to capture the impact of recent global development efforts. Since 2015 marks the adoption of the UN SDGs and widespread infrastructure investments, this binary classification helps us compare education outcomes and service access before and after 2015 in a meaningful way.
+
+### 3rd column : electricity
+
+```{r}
+Desc(data_cleaned$electricity)
+```
+
+We can see that the data has no `NAs`, is numeric, and has 567 unique values. (Q1) It is directly related to our research question as it captures access to electricity, a core infrastructure predictor we want to analyze. (Q2) The data does not need adjustment since it is correctly scaled in percentage and meaningful for our analysis. (Q3) However, the data shows a remarkable frequency of 41% of the values being exactly 100, indicating a left-skewed distribution with many countries having universal access while others vary widely from 1.3% upwards. (Q4) Using logical reasoning, there is no need to adjust or transform this variable at this stage, but we will remain aware of the ceiling effect when interpreting its relationship with education outcomes. As for all data, it holds that the more observations the better, and here, the data is complete and cannot be extended further within the current dataset. (Q5)
+
+### 4th column : internet
+
+```{r}
+Desc(data_cleaned$internet)
+```
+
+We can see that the data has 2% missing values, is numeric, and has 1,014 unique values. (Q1) It is correctly formatted as percentage internet access by country-year and does not require reformatting. (Q2) It directly relates to our research question as it measures internet access, one of our key infrastructure predictors for educational outcomes. (Q3) No adjustment is needed since the values are already in interpretable percentage terms, ready for analysis. (Q4) The data shows a relatively even distribution across the 0–100% range, with a median of 46% and a slight skew (\~0), without concerning outliers requiring removal. (Q5) There is no need to extend this variable within the dataset, as the 2% missingness is manageable and can be handled during modeling if needed.
+
+### 5th column : secondary_edu
+
+```{r}
+Desc(data_cleaned$secondary_edu)
+```
+
+Some values in `secondary_edu` exceed 100% due to valid reasons in global education data, such as late completions and migration effects. These do not require capping, as they reflect real phenomena and occur infrequently, ensuring they do not distort analyses. Retaining them preserves the integrity and richness of the data for robust modeling. (Q3)
+
+### 6th column : youth_literacy
+
+```{r}
+Desc(data_cleaned$youth_literacy)
+```
+
+This column has 74.7% missing values, leaving only 25% usable data, which is too sparse for meaningful analysis or modeling. Additionally, its values are highly clustered around 100, limiting its variability and reducing its contribution in explaining differences in secondary education outcomes. Since it would add noise rather than insight, it is better to drop this column to simplify the dataset and avoid unnecessary complexity during modeling. (Q3)
+
+```{r}
+data_cleaned <- data_cleaned %>% select(- youth_literacy)
+```
+
+### 7th column : GDP
+
+```{r}
+Desc(data_cleaned$GDP)
+
+
+data_cleaned <- data_cleaned %>%
+  mutate(
+    income_group = case_when(
+      GDP <= 1085 ~ "Low income",
+      GDP <= 4255 ~ "Lower middle income",
+      GDP <= 13205 ~ "Upper middle income",
+      GDP > 13205 ~ "High income"
+    )
+  ) # Q5
+
+data_cleaned$income_group <- as.factor(data_cleaned$income_group)
+```
+
+`GDP` has only 2.8% missing values, making it largely complete and reliable for analysis. However, the variable is heavily right-skewed (skew = 2.17) with a maximum value above 170,000, making direct modeling challenging and interpretation less intuitive. To address this while retaining its predictive value, we converted `GDP` into `income_groups` (low, lower middle, upper middle, high) following World Bank cutoffs. This transformation extends the utility of `GDP` (Q5), allowing for easier interpretation, effective group comparisons, and improved model stability, while ensuring that we do not lose essential information on economic conditions across countries.
+
+### 8th column : urban_percent
+
+```{r}
+Desc(data_cleaned$urban_percent)
+
+# Create grouped factor
+data_cleaned <- data_cleaned %>%
+  mutate(urban_group = case_when(
+    urban_percent < 30 ~ "Low urban",
+    urban_percent < 60 ~ "Medium urban",
+    TRUE ~ "High urban"
+  )) # Q5
+
+# Convert to factor
+data_cleaned$urban_group <- as.factor(data_cleaned$urban_group)
+
+```
+
+We grouped `urban_percent` into three categories: *Low urban (\<30%), Medium urban (30–60%), and High urban (\>60%)*, converting it into a factor for clean modeling and visualization (Q5). This preserves the essence of the continuous variable while simplifying interpretation and enabling clear comparisons across urbanization levels.
+
+It is a good idea to do this because urbanization often impacts education outcomes nonlinearly, and categorizing helps capture these broad differences without overcomplicating the model. It also reduces sensitivity to small fluctuations in urban percentage, aids in detecting threshold effects, and improves readability when presenting results.
+
+### 9th column : low_edu
+
+```{r}
+Desc(data_cleaned$low_edu)
+
+# Rename and convert to factor
+data_cleaned <- data_cleaned %>%
+  rename(low_edu_flag = low_edu) %>%
+  mutate(low_edu_flag = as.factor(low_edu_flag)) # Q1
+
+levels(data_cleaned$low_edu_flag)
+```
+
+Since `low_edu_flag` is a binary indicator (0/1), converting it to a factor ensures that modeling functions treat it as a categorical outcome rather than a numeric continuous variable, avoiding accidental misinterpretation in regression or visualization. (Q1)
+
+using factors makes it easier to summarize, plot, and use in models (e.g., logistic regression) without needing to remember its meaning every time.
+
+### 10th column : post_2015
+
+```{r}
+Desc(data_cleaned$post_2015)
+
+data_cleaned$post_2015 <- factor(data_cleaned$post_2015,
+                                 levels = c(0, 1),
+                                 labels = c("2005–2015", "2016–2023"))
+```
+
+### urban_group & income_group summary
+
+```{r}
+Desc(data_cleaned$income_group)
+Desc(data_cleaned$urban_group)
+```
+
+The dataset shows a strong imbalance across income groups. Nearly half of the observations come from high-income countries **(49.4%)**, followed by upper-middle **(28.1%)** and lower-middle income **(20.4%)**. Low-income countries are significantly underrepresented at only **2.2%**, likely due to limited data availability or reporting capacity.
+
+A similar pattern appears in urbanization: highly urbanized countries make up **47.5%** of the data, while low urban areas account for just **14.5%**. This skew may bias our analysis toward better-developed and more connected regions, potentially limiting insights into less urbanized, lower-income contexts.
+
+```{r}
+summary(data_cleaned)
+```
+
+## Step 8 : data relation
+
+To understand how infrastructure and economic factors relate to education outcomes, we explored relationships across key variables.
+
+We began with a group-wise summary comparing low vs high education countries. The results show that low-education countries have significantly lower GDP, internet, and electricity access. These differences were statistically significant across all dimensions.
+
+Internet usage also varies sharply by income group — with low-income countries clustering at the lowest access levels. A multivariate contour plot of internet access based on GDP and electricity reveals that infrastructure availability and wealth jointly drive digital inclusion. Finally, correlation analysis confirmed strong associations among education, GDP, and internet, supporting our hypothesis.
+
+```{r}
+data_viz <- data_cleaned %>%
+  drop_na(internet, electricity, secondary_edu, income_group)
+```
+
+To ensure clean and meaningful visualizations, we created a separate dataset `data_viz`where only rows with missing values in key variables (internet, electricity, secondary education) were removed.
+
+Since the number of NAs was relatively small, this step helps reduce noise without compromising representativeness. Moreover, imputation is intentionally postponed until later in the analysis, when we better understand the variable relationships — following best practice in exploratory workflows.
+
+### Table Summary: Low vs High Education (TOne Table)
+
+```{r}
+tabled_data <- data.frame(data_cleaned)
+TOne(
+  x = tabled_data[, c("electricity", "internet", "secondary_edu", "GDP", "urban_percent")],
+  grp = tabled_data$low_edu_flag
+)
+```
+
+Countries classified as "low education" (24.3% of the dataset) show significantly lower values across all key indicators: electricity access, internet use, GDP, and urbanization. For example, their mean GDP (\$3,976) is nearly 7× lower than in higher-education countries (\$26,360). These differences are all statistically significant (p \< 0.001), highlighting a strong association between infrastructure access and education outcomes.
+
+### Categorical \~ Numeric Relationships
+
+```{r}
+# internet by income group
+Desc(income_group ~ internet, data_cleaned)
+
+ggplot(data_viz, aes(x = internet, fill = income_group)) +
+  geom_density(alpha = 0.6) +
+  labs(title = "Internet Access by Income Group", x = "Internet Usage (%)", y = "Density")
+
+# Electricity by Urban Group
+Desc(urban_group ~ electricity, data_cleaned)
+
+ggplot(data_viz, aes(x = income_group, y = electricity, fill = income_group)) +
+  geom_boxplot() +
+  labs(title = "Electricity Access by Income Group", y = "Electricity (%)", x = "Income Group")
+
+# GDP by Low Education
+Desc(low_edu_flag ~ GDP, data_cleaned)
+
+```
+
+> The analysis reveals extreme disparities: internet access ranges from 1.8% (low-income) to 69.3% (high-income) nations. Electricity coverage shows similar inequality, with high-urban areas (97.3%) far surpassing low-urban regions (54.7%). GDP differences are starkest - low-education countries average just \$3,976 versus \$26,360 elsewhere. All group differences were statistically significant (p\<0.001) via Kruskal-Wallis tests.
+
+### income group \~ secondary education
+
+```{r}
+ggplot(data_viz,aes(x=income_group,y=secondary_edu ,fill=income_group)) +
+  geom_boxplot(fill="white") +
+  geom_violin()
+```
+
+### Numeric \~ Numeric
+
+```{r}
+Desc(electricity ~ internet, data_cleaned)
+```
+
+### Time Trend — Mean Secondary Education Over Years
+
+```{r, echo=FALSE}
+data_cleaned %>%
+  group_by(year) %>%
+  summarise(mean_secondary = mean(secondary_edu, na.rm = TRUE)) %>%
+  ggplot(aes(x = year, y = mean_secondary)) +
+  geom_line(color = "skyblue", size = 1.2) +
+  geom_point() +
+  labs(title = "Average Secondary Education Over Time", y = "Mean Secondary Enrollment (%)")
+```
+
+### Categorical \~ Categorical: Low Education by Income Group
+
+```{r}
+ggplot(data_viz, aes(x = income_group, fill = low_edu_flag)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Low Education by Income Group", y = "Proportion", x = "Income Group", fill = "Low Education")
+```
+
+### General Relationship Prescreening (Auto Plots)
+
+```{r function-definition, include=FALSE, warning=FALSE}
+plot_data_column <- function(data, column, target) {
+  if(is.factor(data[[target]])) {
+    if(is.numeric(data[[column]])) {
+      plotlimbox <- quantile(data[[column]], c(0.1, 0.9), na.rm = TRUE)
+      ggplot(data, aes_string(x = target, y = column)) +
+        geom_boxplot(outlier.shape = NA) +
+        scale_y_continuous(limits = plotlimbox) +
+        theme(legend.position = "none")
+    } else {
+      ggplot(data, aes_string(x = column, fill = target)) +
+        geom_bar(position = "fill") +
+        theme(legend.position = "none")
+    }
+  } else {
+    if(is.numeric(data[[column]])) {
+      plotlimscalex <- ifelse(min(data[[column]]) == 0,
+                              quantile(data[[column]], c(0, 0.9999), na.rm = TRUE),
+                              quantile(data[[column]], c(0.0001, 0.9999), na.rm = TRUE))
+      plotlimscaley <- ifelse(min(data[[target]]) == 0,
+                              quantile(data[[target]], c(0, 0.9999), na.rm = TRUE),
+                              quantile(data[[target]], c(0.0001, 0.9999), na.rm = TRUE))
+      ggplot(data, aes_string(x = column, y = target)) +
+        geom_point() +
+        scale_y_continuous(limits = plotlimscaley) +
+        scale_x_continuous(limits = plotlimscalex) +
+        theme(legend.position = "none")
+    } else {
+      plotlimbox <- quantile(data[[target]], c(0.1, 0.9), na.rm = TRUE)
+      ggplot(data, aes_string(x = column, y = target)) +
+        geom_boxplot(outlier.shape = NA) +
+        scale_y_continuous(limits = plotlimbox) +
+        theme(legend.position = "none")
+    }
+  }
+}
+```
+
+```{r}
+target <- "low_edu_flag"
+
+myplots <- lapply(
+  colnames(data_viz)[-which(colnames(data_viz) == target)],
+  plot_data_column,
+  data = data_viz,
+  target = target
+)
+
+ncol <- floor(sqrt(length(myplots)))
+do.call("grid.arrange", c(myplots, ncol = ncol, top = "Relationships with Low Education Flag"))
+```
+
+### Correlation Matrix (Numeric Columns Only)
+
+```{r}
+numeric_cols <- sapply(data_viz, is.numeric)
+cor_matrix <- cor(data_viz[, numeric_cols], use = "complete.obs")
+PlotCorr(cor_matrix)
+PlotWeb(cor_matrix)
+```
+
+### 3D-Like Contour: Internet \~ GDP + Electricity
+
+```{r}
+# Step 1: Create grid of GDP and electricity values
+gdp_seq <- seq(quantile(data_viz$GDP, 0.1, na.rm = TRUE),
+               quantile(data_viz$GDP, 0.9, na.rm = TRUE), length.out = 100)
+
+elec_seq <- seq(quantile(data_viz$electricity, 0.1, na.rm = TRUE),
+                quantile(data_viz$electricity, 0.9, na.rm = TRUE), length.out = 100)
+
+grid <- expand.grid(GDP = gdp_seq, electricity = elec_seq)
+
+# Step 2: Fit LOESS model for Internet ~ GDP + Electricity
+model_loess <- loess(internet ~ GDP * electricity, data = data_viz, degree = 2)
+
+# Step 3: Predict Internet for each (GDP, Electricity) pair
+grid$internet <- as.numeric(predict(model_loess, newdata = grid))
+
+# Step 4: Plot filled contour
+ggplot(grid, aes(x = GDP, y = electricity, z = internet)) +
+  geom_contour_filled() +
+  labs(
+    title = "Contour Plot: Internet Access by GDP & Electricity Access",
+    x = "GDP per Capita",
+    y = "Electricity Access (%)",
+    fill = "Internet Access (%)"
+  ) +
+  theme_minimal()
+```
+
+This plot supports our narrative that access to internet (digital infrastructure) depends on foundational infrastructure `electricity` and is enhanced by economic capacity `GDP`, laying the groundwork for analyzing how these layers of infrastructure access influence education outcomes across different income countries.
+
+## Step 9 : Challenge your findings
+
+```{r, echo=FALSE}
+# Step 1: Create a grid of GDP and Internet values
+gdp_seq <- seq(quantile(data_cleaned$GDP, 0.1, na.rm = TRUE),
+               quantile(data_cleaned$GDP, 0.9, na.rm = TRUE),
+               length.out = 100)
+
+internet_seq <- seq(quantile(data_cleaned$internet, 0.1, na.rm = TRUE),
+                    quantile(data_cleaned$internet, 0.9, na.rm = TRUE),
+                    length.out = 100)
+
+grid_check <- expand.grid(GDP = gdp_seq, internet = internet_seq)
+
+# Step 2: Fit LOESS model: Secondary Education ~ GDP * Internet
+model_loess_check <- loess(secondary_edu ~ GDP * internet,
+                           data = data_cleaned, degree = 2)
+
+# Step 3: Predict secondary education for each (GDP, Internet) pair
+grid_check$secondary_edu <- as.numeric(predict(model_loess_check, newdata = grid_check))
+
+# Step 4: Plot
+ggplot(grid_check, aes(x = GDP, y = internet, z = secondary_edu)) +
+  geom_contour_filled() +
+  labs(
+    title = "Challenge Plot: Secondary Education by GDP & Internet Access",
+    x = "GDP per Capita",
+    y = "Internet Access (%)",
+    fill = "Secondary Edu (%)"
+  ) +
+  theme_minimal()
+```
+
+To validate our earlier finding that internet access is positively associated with secondary education rates, we modeled the relationship using a LOESS surface with both `GDP` and `internet` access as predictors. The resulting contour plot closely mirrored our earlier analysis, indicating that the positive effect of internet access on education outcomes persists even after controlling for `GDP`. This suggests that internet access is not merely a proxy for economic development, but may independently support educational advancement. However, since `GDP` and internet access are strongly correlated globally, `GDP` likely still plays a foundational role. This analysis strengthens our confidence that investments in digital infrastructure can meaningfully impact education—while highlighting that such efforts are most effective when supported by broader economic capacity.
+
+## Step 10 : Handling missing values
+
+### Missing Data Imputation using MICE
+
+```{r}
+
+# 1. Check missingness before
+PlotMiss(data_cleaned)
+
+# 2. Variables to impute
+missing_vars <- c("internet", "GDP")
+
+# 3. Imputation methods
+method_types <- c("pmm", "pmm")
+
+# 4. Define predictor matrix carefully using only observed (mostly complete) predictors
+# Select useful predictors (example: education, electricity etc. — make sure they exist and are not missing!)
+complete_cols <- c("secondary_edu", "electricity")
+
+# 5. Build predictorMatrix
+predictor_matrix <- matrix(0, nrow = length(missing_vars), ncol = ncol(data_cleaned))
+rownames(predictor_matrix) <- missing_vars
+colnames(predictor_matrix) <- names(data_cleaned)
+
+for (var in missing_vars) {
+  predictor_matrix[var, complete_cols] <- 1
+}
+
+# 6. Impute using mice
+imputations <- mice(
+  data_cleaned,
+  m = 1,
+  method = method_types,
+  predictorMatrix = predictor_matrix,
+  blocks = make.blocks(missing_vars),
+  maxit = 5,
+  seed = 123
+)
+```
+
+### checking imputation quality
+
+```{r}
+# 7. Check if it worked
+print("GDP Imputation Check:")
+Desc(imputations$imp$GDP)
+Desc(data_cleaned$GDP[!is.na(data_cleaned$GDP)])
+
+print("Internet Imputation Check:")
+Desc(imputations$imp$internet)
+Desc(data_cleaned$internet[!is.na(data_cleaned$internet)])
+
+# 8. Stability
+plot(imputations)
+```
+
+### Final imputation and recreation
+
+```{r}
+# 9. Complete dataset
+data_cleaned_imputed <- complete(imputations)
+ 
+ data_cleaned_imputed <- data_cleaned_imputed %>%
+   select(-income_group)
+
+
+# 10. Recreate income group (from GDP)
+data_cleaned_imputed <- data_cleaned_imputed %>%
+  mutate(
+    income_group = case_when(
+      GDP <= 1085 ~ "Low income",
+      GDP <= 4255 ~ "Lower middle income",
+      GDP <= 13205 ~ "Upper middle income",
+      GDP > 13205 ~ "High income"
+    )
+  )
+
+data_cleaned$income_group <- as.factor(data_cleaned_imputed$income_group)
+
+# 11. Final check
+PlotMiss(data_cleaned_imputed)
+```
+
+## Challenges
+
+A major challenge during the exploratory data analysis (EDA) was **the presence of missing values** in critical columns like `GDP`, `internet` access, and `income_group`. These missing entries were not randomly distributed — they were disproportionately concentrated in low-income countries, which are central to our research question.
+
+This created a data bias, where the very countries we aimed to analyze had the least available information. Imputing these values too early would have introduced assumptions; therefore, we chose to visualize with filtered subsets first and postpone imputation until we better understood variable relationships. Even after imputation, the underrepresentation of poorer countries remained a limitation we had to acknowledge when interpreting results.
+
+# Data Storytelling
+
+## Introduction
+
+Access to quality education remains uneven across the globe, and **infrastructure services like electricity and internet access play a key role** in shaping educational outcomes.
+
+This project focuses on **secondary education** — widely regarded as the minimum threshold for literacy, critical thinking, and future opportunity. Every individual should have the means to reach this basic level.
+
+But the reality is different: our dataset shows significant disparities, both in infrastructure and educational achievement, across different income groups and regions.
+
+## The Data
+
+We worked with a global dataset combining education, infrastructure, and demographic metrics. However, the data is **sparse and unevenly distributed** — especially for **low-income countries**, which are **underrepresented**. High-income countries dominate the available insights, creating a potential bias in analysis.
+
+This lack of data itself tells a story — **the nations that need the most help often have the least visibility** in global datasets.
+
+## Finding 1: Electricity & Education Are Strongly Connected
+
+```{r, echo=FALSE}
+edu_summary <- data_cleaned_imputed %>%
+  drop_na(low_edu_flag, electricity, internet) %>%
+  group_by(low_edu_flag) %>%
+  summarise(
+    electricity = mean(electricity),
+    internet = mean(internet)
+  ) %>%
+  mutate(edu_group = ifelse(low_edu_flag == 1, "Low Education", "High Education")) %>%
+  select(-low_edu_flag) %>%
+  pivot_longer(cols = c("electricity", "internet"),
+               names_to = "variable",
+               values_to = "mean_access")
+
+# Plot grouped bar chart
+ggplot(edu_summary, aes(x = edu_group, y = mean_access, fill = variable)) +
+  geom_bar(stat = "identity", 
+           position = position_dodge(width = 0.7), 
+           width = 0.6, 
+           alpha = 0.85) +
+  geom_text(aes(label = paste0(round(mean_access, 1), "%")),
+            position = position_dodge(width = 0.7), 
+            vjust = -0.5,
+            size = 4,
+            color = "black") +
+  scale_fill_manual(values = c("electricity" = "#1E64B0", "internet" = "#75AADB"),
+                    labels = c("Electricity Access", "Internet Access")) +
+  labs(
+    title = "Infrastructure Access by Education Level",
+    x = NULL,
+    y = NULL,
+    fill = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.text.y = element_blank(),  # This removes y-axis numbers
+    axis.text.x = element_text(size = 10, color = "black"),  # Keeps education labels
+    axis.ticks = element_blank(),  # Removes all ticks
+    panel.background = element_blank(),
+    legend.position = "top"  # Moved legend to top for better use of space
+  )
+```
+
+The analysis reveals significant disparities in infrastructure access between high and low education groups:Electricity Access shows near - *universal coverage* in high education areas **96.2 %** compared to just **46.1%** in low education regions.
+
+Internet Access demonstrates an even wider gap, with high education areas at **56.8 %** versus only **14.4%** in low education zones.
+
+Key Findings:
+
+-   High education regions enjoy 2.1× better electricity access and 3.9× better internet connectivity.
+
+-   Internet access lags behind electricity in both groups, suggesting broadband infrastructure is less developed than power grids.
+
+> Countries with low education levels have dramatically lower access to electricity and internet. This gap highlights how infrastructure acts as a gatekeeper to learning.
+
+## Finding 2: Urbanization Deepens the Divide
+
+```{r, echo=FALSE}
+ggplot(data_cleaned_imputed, aes(x = urban_group, fill = factor(low_edu_flag))) +
+  geom_bar(position = "fill", width = 0.55, alpha = 0.9) +  # Perfect Goldilocks width
+  scale_fill_manual(values = c("0" = "grey90", "1" = "#75AADB"),
+                    labels = c("High Education", "Low Education")) +
+  labs(
+    title = "Education Levels Across Urbanization Groups",
+    y = NULL,  
+    x = NULL,   
+    fill = NULL
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +  # Keeps % ticks on y-axis
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 12),  
+    axis.text.y = element_text(size = 10),  
+    axis.title = element_blank(),           
+    legend.position = "top",
+    legend.text = element_text(size = 11),
+    panel.background = element_blank()
+  )
+```
+
+Countries with higher urbanization tend to show much higher education completion. In contrast, low-urban countries are overrepresented in the low-education group, highlighting how geographic and infrastructure barriers still play a major role in access to learning. This finding strengthens the narrative that urbanization and education go hand-in-hand — and rural areas may require targeted investment in infrastructure and connectivity.
+
+> **Low-urban countries are significantly more likely to have low education outcomes**, emphasizing that rural populations remain underserved.
+
+## Finding 3: Does GDP Guarantee Education?
+
+```{r, echo=FALSE}
+
+ggplot(data_cleaned_imputed, aes(x = GDP, y = internet, color = factor(low_edu_flag))) +
+  geom_point(alpha = 0.5, size = 2) +
+  labs(
+    title = "Internet Access vs GDP by Education Status",
+    x = "GDP",
+    y = NULL,  
+    color = "Education level"
+  ) +
+  scale_color_manual(
+    values = c("0" = "grey90", "1" = "#75AADB"),
+    labels = c("Higher Education", "Low Education")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "right",  
+    panel.grid.major = element_blank(),  
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),  # Centered bold title
+    axis.text = element_text(size = 12),
+    panel.background = element_blank(),
+    axis.line = element_line(color = "grey90")  
+  )
+```
+
+> While GDP often correlates with higher education levels, it’s **not the only factor**. Some countries punch above their weight — achieving relatively strong education outcomes despite lower GDP, thanks to focused investment and infrastructure access.
+
+## Finding 4 : Infrastructure inequality
+
+```{r, echo=FALSE}
+# Identify Top 5 and Bottom 5 Countries by Secondary Education
+
+# Step 1: Compute mean education per country (<100) and extract Top/Bottom 5
+top_bottom_edu <- data_cleaned_imputed %>%
+  group_by(country) %>%
+  summarise(
+    mean_edu = mean(secondary_edu, na.rm = TRUE),
+    mean_gdp = mean(GDP, na.rm = TRUE),
+    mean_elec = mean(electricity, na.rm = TRUE),
+    mean_internet = mean(internet, na.rm = TRUE)
+  ) %>%
+  filter(mean_edu < 100) %>%
+  arrange(desc(mean_edu)) %>%
+  mutate(group = case_when(
+    row_number() <= 5 ~ "Top 5",
+    row_number() > n() - 5 ~ "Bottom 5",
+    TRUE ~ "Other"
+  )) %>%
+  filter(group != "Other") %>%
+  ungroup()
+
+# Identify countries to highlight:
+highlight_country_top5 <- top_bottom_edu %>%
+  filter(group == "Top 5") %>%
+  arrange(mean_edu) %>%   # ascending within Top 5
+  slice(1) %>%            # last in Top 5
+  pull(country)
+
+highlight_country_bottom5 <- top_bottom_edu %>%
+  filter(group == "Bottom 5") %>%
+  arrange(mean_edu) %>%   # ascending within Bottom 5
+  slice(2) %>%            # 2nd from bottom
+  pull(country)
+
+# Mark highlights
+top_bottom_edu <- top_bottom_edu %>%
+  mutate(
+    highlight = case_when(
+      country == highlight_country_top5 ~ "Highlight_Top5",
+      country == highlight_country_bottom5 ~ "Highlight_Bottom5",
+      TRUE ~ "Normal"
+    )
+  )
+
+# Step 2: Plot
+ggplot(top_bottom_edu, aes(x = reorder(country, mean_edu), y = mean_edu,
+                           fill = interaction(group, highlight))) +
+  geom_col(width = 0.6, alpha = 0.85) +
+  geom_text(aes(label = round(mean_edu, 1)), hjust = 1.1, color = "white", size = 4) +
+  coord_flip() +
+  scale_fill_manual(
+    values = c(
+      "Top 5.Normal" = "#75AADB",
+      "Bottom 5.Normal" = "#1E64B0",
+      "Top 5.Highlight_Top5" = "#FF6347",       
+      "Bottom 5.Highlight_Bottom5" = "#FF6347"  
+    )
+  ) +
+  labs(
+    title = "Top 5 vs Bottom 5 Countries by Secondary Education (<100%)",
+    y = NULL, x = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_blank()
+  )
+
+# Step 3: Check their infrastructure access
+infra_compare <- top_bottom_edu %>%
+  filter(country %in% c(highlight_country_top5, highlight_country_bottom5)) %>%
+  select(country, mean_edu, mean_gdp, mean_elec, mean_internet)
+
+infra_compare
+
+```
+
+We compared the **Top 5** and **Bottom 5** countries based on secondary education completion (under 100%).
+
+-   Austria, the lowest-ranked among top performers, still maintains near-universal electricity (100%) and strong internet (81%), backed by a high GDP (\~\$50,000).
+
+-   Niger, among the poorest performers, has very low education completion (12.8%), electricity access (15%), and internet access (7%), with a GDP around \$1,200.
+
+> These two countries represent extreme ends of infrastructure access and national wealth. The contrast underscores our argument: Without electricity, internet, and economic support, educational progress remains severely constrained.
+
+## Finding 5 : Global Education Progress Accelerated, Then Faltered Post-SDGs
+
+```{r, echo=FALSE, results='hide'}
+ggplot(data_cleaned_imputed, 
+       aes(x = year, y = secondary_edu, color = post_2015)) +
+  
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1.5) +
+  geom_vline(xintercept = 2015.5, linetype = "dashed", color = "grey40") +
+  
+  # Annotate peak and dip
+  annotate("text", x = 2020.5, y = 83, label = "83%", fontface = "bold", 
+           color = "#75B", vjust = -0.5, size = 4) +
+  annotate("text", x = 2023, y = 78, label = "78%", fontface = "bold", 
+           color = "#75B", vjust = -0.5, size = 4) +
+  
+  scale_color_manual(values = c("2005–2015" = "grey60", "2016–2023" = "#75AADB")) +
+  
+  labs(
+    title = "Education Progress Accelerated Post-SDGs",
+    x = NULL, 
+    y = NULL,
+    color = NULL
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "none",
+    panel.background = element_blank(),
+    axis.line = element_line(color = "grey")
+  )
+```
+
+After 2015, when the *Sustainable Development Goals (SDGs)* were launched, the world saw faster improvements in secondary education completion rates, continuing the progress made under the Millennium Development Goals. The data shows a clear acceleration after 2016, peaking around 2020–2021, as global efforts to improve education expanded.
+
+However, this peak was followed by a noticeable decline towards 2023, reflecting the impact of COVID-19 disruptions, economic slowdowns, and conflict-related setbacks on education systems worldwide. By labeling the peak and the dip on our plot, we can clearly see this shift, turning the numbers into a narrative about global policy, resilience, and vulnerability in education progress.
+
+## What can we do?
+
+Access to electricity and the internet isn't just about convenience — it's a foundation for learning. Our analysis shows that without infrastructure, education suffers. The gap in secondary education is not merely a result of economic inequality, but of unequal access to opportunity.
+
+To truly close the education divide, we must:
+
+- Invest in electricity and internet access in underserved regions
+
+- Strengthen data collection in low-income countries to make invisible gaps visible
+
+- Support global initiatives that target both infrastructure and education together
+
+This matters — not just for fairness, but for global development, innovation, and stability.
+
+> funding infrastructure is funding education.
+
+# Summary
+
+This project explored the relationship between infrastructure services — specifically electricity and internet access — and education outcomes across countries with varying income levels. Using World Bank data, we focused on secondary education completion as a key indicator of basic educational attainment.
+
+Despite the global push for inclusive education, our analysis revealed persistent gaps:
+
+-   Countries with limited access to electricity and internet consistently lagged behind in education, regardless of GDP.
+
+-   High-income countries dominate the dataset, while low-income nations remain underrepresented, highlighting a critical data availability issue.
+
+Visual trends, time analysis, and comparative summaries all point to strong correlations between infrastructure and education, not just wealth.
+
+We demonstrated that while GDP plays a role, it does not guarantee strong education outcomes. Infrastructure investment — especially in electricity and internet access — is a crucial enabler of educational equity.
+
+This insight underscores the urgency to fund and support low-income countries in building the infrastructure needed to unlock educational opportunities. Targeted development in these areas is not only fair — it’s foundational for achieving the Sustainable Development Goals (SDGs).
