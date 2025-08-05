@@ -5,7 +5,7 @@
 
 ---
 
-## 📌 Project Overview
+##  Project Overview
 
 This project explores the relationship between **infrastructure access** — specifically **electricity** and **internet availability** — and **education outcomes** across countries of different income levels.  
 The analysis was conducted as part of the *Data Storytelling in Finance* course, with a focus on transforming raw data into a compelling data-driven narrative.
@@ -28,12 +28,58 @@ The data spans multiple years and countries, allowing for both **cross-country**
 
 ---
 
-##  Main Findings
+### 🔍 Main Findings
 
-1. **Electricity access and education outcomes** are strongly correlated in lower-income countries, but the relationship flattens for high-income nations.
-2. **Internet penetration** tends to be a more significant predictor of improved education outcomes in middle-income countries.
-3. **High GDP per capita** does not automatically translate into better education outcomes — some upper-middle-income countries outperform high-income ones on key metrics.
-4. **Regional clusters** show infrastructure and education often advance hand-in-hand, but disparities persist where investment is lacking.
+---
+
+#### 1.  Extreme Inequality in Education Access
+
+- Top countries (e.g., Italy, Norway) have **~100%** secondary school completion.  
+- Bottom countries (e.g., Chad, Niger) fall below **20%**.  
+- This isn’t just about schools — it's about systemic inequality.
+
+---
+
+#### 2.  Infrastructure Drives Education Outcomes
+
+- **High education countries** → **96% electricity**, **57% internet**.  
+- **Low education countries** → **46% electricity**, **14% internet**.  
+> Infrastructure is not optional — it's foundational.
+
+---
+
+#### 3.  Education, GDP & Internet Form a Vicious Cycle
+
+- Low GDP + low internet = low education rates.  
+- Wealthier, connected countries consistently perform better.  
+- Breaking this cycle requires investment beyond schools.
+
+---
+
+#### 4.  Missing Data = Missing Voices
+
+- Many **low-income nations** are **underrepresented** in global datasets.  
+> Data gaps make inequality **invisible** to policymakers.
+
+---
+
+#### 5.  Infrastructure Before Policy
+
+- Without electricity or internet, education policy alone won’t work.  
+- Investment must first target **basic infrastructure**.
+
+---
+
+#### 6.  Progress Post-2015, Then a Setback
+
+- **SDG efforts** boosted education after 2016 — peaking in **2020–21**.  
+- **COVID-19**, economic shocks, and conflict drove a decline by 2023.  
+> The data shows how fragile progress can be — and how urgent resilience is.
+
+---
+
+###  TL;DR: Funding infrastructure = funding education.
+
 
 ---
 
