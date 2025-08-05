@@ -111,4 +111,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ##  Contact
 
-If you have any questions or feedback, feel free to reach out via GitHub Issues or [connect with me on LinkedIn](www.linkedin.com/in/meghachowdhury).
+If you have any questions or feedback, feel free to reach out via GitHub Issues or [connect with me on LinkedIn](https://www.linkedin.com/in/meghachowdhury).
