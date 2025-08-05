@@ -28,7 +28,7 @@ The data spans multiple years and countries, allowing for both **cross-country**
 
 ---
 
-### 🔍 Main Findings
+###  Main Findings
 
 ---
 
